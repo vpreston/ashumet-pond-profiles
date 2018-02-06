@@ -19,8 +19,9 @@ def calculate_julian_day(y, mo, d, h, mi, s):
     ye = y + 4800 - a
     m = mo + 12*a - 3
     jdn = d + ((153*m + 2)/5) + 365*ye + ye/4 - ye/100 + ye/400 - 32045
-    df = (h-12)/24 + mi/1440 + s/86400
-    jd = float(jdn) + float(df)
+    # jdn = 367*y - (7*(y+5001 + (mo-9)/7))/4 + (275*mo)/9 + d + 1729777
+    dl = (h-12)/24. + mi/1440. + s/86400.
+    jd = int(jdn) + float(dl)
     return jd
 
 def calculate_seconds_elapsed(df_row):
@@ -39,7 +40,7 @@ def seconds_elapsed(df):
     @output: modifies dataframe without explicit output
     '''
     df.loc[:,'Seconds_Elapsed'] = df.apply(lambda row: calculate_seconds_elapsed(row), axis=1)
-    return
+    return df
 
 def global_time_column(df):
     '''
@@ -53,7 +54,7 @@ def global_time_column(df):
                                                                         float(row['Hour']), 
                                                                         float(row['Minute']), 
                                                                         float(row['Second'])),axis=1)
-    return
+    return df
 
 def handle_ctd_time(data):
     '''
@@ -67,8 +68,8 @@ def handle_ctd_time(data):
     data.loc[:,'Hour'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(0).astype('float')
     data.loc[:,'Minute'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(1).astype('float')
     data.loc[:,'Second'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(2).astype('float')
-    global_time_column(data)
-    seconds_elapsed(data)
+    data = global_time_column(data)
+    data = seconds_elapsed(data)
     return
 
 def handle_gga_time(data):
@@ -77,12 +78,18 @@ def handle_gga_time(data):
     @input: dataframe
     @output: none; dataframe rewritten in processing
     '''
-    data.loc[:,'Year'] = data['Time'].str.split(' ').str.get(0).str.split('/').str.get(2).astype('int')
-    data.loc[:,'Month'] = data['Time'].str.split(' ').str.get(0).str.split('/').str.get(0).astype('int')
-    data.loc[:,'Day'] = data['Time'].str.split(' ').str.get(0).str.split('/').str.get(1).astype('int')
-    data.loc[:,'Hour'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(0).astype('float')
-    data.loc[:,'Minute'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(1).astype('float')
+    data.loc[:,'Year'] = data['Time'].str.split(' ').str.get(0).str.split('/').str.get(2).astype('int')+17
+    data.loc[:,'Month'] = data['Time'].str.split(' ').str.get(0).str.split('/').str.get(0).astype('int')+10
+    data.loc[:,'Day'] = data['Time'].str.split(' ').str.get(0).str.split('/').str.get(1).astype('int')+6
+
+    data.loc[:,'Minute'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(1).astype('float')+55
+    data.loc[:,'Hour'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(0).astype('float')+15
+
     data.loc[:,'Second'] = data['Time'].str.split(' ').str.get(1).str.split(':').str.get(2).astype('float')
+
+    data.loc[:,'Hour'] = data.apply((lambda x : float(x['Hour'] + int(x['Minute']/60.0))),axis=1)
+    data.loc[:,'Minute'] = data.apply((lambda x : float(x['Minute']%60)),axis=1)
+
     global_time_column(data)
     seconds_elapsed(data)
     return
@@ -99,7 +106,7 @@ def handle_airmar_time(data):
     data.loc[:,'Hour'] = data.apply(lambda x : float(str(x['TOD'])[0:2]),axis=1)
     data.loc[:,'Minute'] = data.apply(lambda x : float(str(x['TOD'])[2:4]),axis=1)
     data.loc[:,'Second'] = data.apply(lambda x : float(str(x['TOD'])[4:]),axis=1)
-    global_time_column(data)
+    data = global_time_column(data)
     seconds_elapsed(data)
     return
 
@@ -125,14 +132,14 @@ def handle_nitrate_time(data):
     @input: dataframe
     @output: none; dataframe rewritten in processing
     '''
-    data.loc[:,'Year'] = data.apply(lambda x : int(str(x['2017192'])[0:4]),axis=1)
-    data.loc[:,'Month'] = data.apply(lambda x : int(str(x['2017192'])[4:])/30+1,axis=1)
-    data.loc[:,'Day'] = data.apply(lambda x : int(str(x['2017192'])[4:])%30-1,axis=1)
-    data.loc[:,'Hour'] = data.apply(lambda x : int(x['20.364744']),axis=1)
-    data.loc[:,'Minute'] = data.apply(lambda x : int((float(x['20.364744']) - float(x['Hour']))  * 60),axis=1)
-    data.loc[:,'Second'] = data.apply(lambda x : float(((float(x['20.364744']) - float(x['Hour'])) * 60 - float(x['Minute'])) * 60),axis=1)
+    data.loc[:,'Year'] = data.apply(lambda x : int(str(x['2017311'])[0:4]),axis=1)
+    data.loc[:,'Month'] = data.apply(lambda x : int(str(x['2017311'])[4:])/30+1,axis=1)
+    data.loc[:,'Day'] = data.apply(lambda x : int(str(x['2017311'])[4:])%30-4,axis=1)
+    data.loc[:,'Hour'] = data.apply(lambda x : int(x['15.848674']),axis=1)
+    data.loc[:,'Minute'] = data.apply(lambda x : int((float(x['15.848674']) - float(x['Hour']))  * 60),axis=1)
+    data.loc[:,'Second'] = data.apply(lambda x : float(((float(x['15.848674']) - float(x['Hour'])) * 60 - float(x['Minute'])) * 60),axis=1)
     
-    data.loc[:,'Hour'] = data.apply(lambda x : int(x['20.364744']),axis=1)
+    data.loc[:,'Hour'] = data.apply(lambda x : int(x['15.848674']),axis=1)
     
     global_time_column(data)
     seconds_elapsed(data)
@@ -143,26 +150,6 @@ def dms2dd(info):
     minutes = float(str(info)[2:]) / 60.0
     dd = degrees + minutes
     return dd
-
-def get_distance(info):
-    plume_center = [np.radians(-70.684092), np.radians(41.758048)]
-    info_point = [np.radians(info['lon_mod']), np.radians(info['lat_mod'])]
-    R=6373.0
-
-
-    dlon = info_point[0] - plume_center[0]
-    dlat = info_point[1] - plume_center[1]
-
-    a = np.sin(dlat / 2)**2 + np.cos(info_point[1]) * np.cos(plume_center[1]) * np.sin(dlon / 2)**2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-
-    return R * c* 1000.0 * np.sign(info_point[0] - plume_center[0])
-
-def get_side(info):
-    return (1.0 if info['distance'] < 0.0 else 0.0)
-
-def get_window(info):
-    return (1.0 if np.fabs(info['distance']) < 200.0 else 0.0)
 
 def convert_gas(gr, gas):
     if gas == "CH4":
@@ -222,6 +209,7 @@ def clean_optode(data, min_time=None, max_time=None):
     @input: dataframe to edit, bounds for dropping values
     @output: writes to dataframe
     '''
+    data.loc[:,'posixtime'] = data.apply(lambda x : x['posixtime']-14700.0, axis=1)
     data.loc[:,'Julian_Date'] = data.apply(lambda x : x.posixtime / 86400.0 + 2440587.5 - 0.0416600001, axis=1)
     if min_time != None:
         data = data.drop(data[data.Julian_Date < min_time].index)
@@ -240,9 +228,6 @@ def clean_airmar(data, min_time=None, max_time=None):
 
     data.loc[:, 'lon_mod'] = data.apply(lambda x : -dms2dd(x.lon), axis=1)
     data.loc[:, 'lat_mod'] = data.apply(lambda x : dms2dd(x.lat), axis=1)
-    data.loc[:, 'distance'] = data.apply(lambda x: get_distance(x), axis=1)
-    data.loc[:, 'side'] = data.apply(lambda x: get_side(x), axis=1)
-    data.loc[:, 'in_range'] = data.apply(lambda x: get_window(x), axis=1)
 
     if min_time != None:
         data = data.drop(data[data.Julian_Date < min_time].index)
@@ -271,14 +256,14 @@ def clean_nitrate(data, min_time=None, max_time=None):
     @input: dataframe to edit, bounds for dropping values
     @output: writes to dataframe
     '''
-    data = data.drop(data[data.SATSDF0342 == 'SATSDF0342'].index)
+    # data = data.drop(data[data.SATSDF0342 == 'SATSDF0342'].index)
     handle_nitrate_time(data)
-    data = data.drop(data[data['0.00'] < 0].index)
+    data = data.drop(data[data['11'] < 0].index)
 
     for i in range(3):
-        mean = data['0.00'].mean()
-        std = data['0.00'].std()
-        data = data.drop(data[np.fabs(data['0.00'] - mean) > 2*std].index)
+        mean = data['11'].mean()
+        std = data['11'].std()
+        data = data.drop(data[np.fabs(data['11'] - mean) > 2*std].index)
 
     if min_time != None:
         data = data.drop(data[data.Julian_Date < min_time].index)

@@ -1244,17 +1244,17 @@ def plot_rawspatial(x, y, data, label, title):
     map_c = plt.figure()
     ax = map_c.gca()
 
-    polys  = shapefile.Reader('./GIS_Data/River.shp')
-    poly = polys.iterShapes().next().__geo_interface__
-    patch = PolygonPatch(poly, fc='green', ec="#6688cc", alpha=0.3, zorder=0)
-    ax.add_patch(patch)
-    ax.axis(xmin=-70.691185, ymin=41.756619, xmax=-70.678, ymax=41.765134)
+    # polys  = shapefile.Reader('./GIS_Data/River.shp')
+    # poly = polys.iterShapes().next().__geo_interface__
+    # patch = PolygonPatch(poly, fc='green', ec="#6688cc", alpha=0.3, zorder=0)
+    # ax.add_patch(patch)
+    # ax.axis(xmin=-70.691185, ymin=41.756619, xmax=-70.678, ymax=41.765134)
 
     cmap = plt.cm.bwr
     points = ax.scatter(x, y, c=data, s=5, alpha=1.0, lw=0, cmap=cmap)
     cbar = map_c.colorbar(points)
     cbar.set_label(label)
-    points.set_clip_path(patch)
+    # points.set_clip_path(patch)
 
     map_c.suptitle('Raw Plotted Data for ' + title, fontsize=18)
     plt.show()
